@@ -1,0 +1,8 @@
+from pymongo import MongoClient
+
+
+mongo_Useranme ="shabbirhussainwork"
+mongo_Password = "J5vVX7fZZktVmuoS"
+MONGO_URI = "mongodb+srv://shabbirhussainwork:J5vVX7fZZktVmuoS@cluster0.r6yzvnn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+
+conn = MongoClient(MONGO_URI)
