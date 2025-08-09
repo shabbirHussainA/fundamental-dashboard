@@ -76,4 +76,17 @@ def ratings_tv(
             df = df.sort_values("t").reset_index(drop=True)
             tf_map[tf] = tv_rating_for_df(df, group=group)
         out[sym] = tf_map
-    return {"success": "true", "data": out}
+    # Transform `out` into your desired format
+    formatted_data = []
+    for pair, durations in out.items():
+        formatted_data.append({
+            "pair": pair,
+            "duration": {
+                tf: {
+                    "score": round(details["score"], 4),
+                    "rating": details["rating"]
+                }
+                for tf, details in durations.items()
+            }
+        })
+    return {"success": "true", "data": formatted_data}

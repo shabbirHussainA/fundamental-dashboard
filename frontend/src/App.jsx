@@ -1,9 +1,11 @@
 import React from 'react'
-import {getS} from 'tradingview-scraper'
+import {Outlet} from 'react-router-dom'
 function App() {
   return (
     <div>
-      
+      <main>
+        <Outlet/>
+      </main>
     </div>
   )
 }

@@ -324,9 +324,9 @@ def tv_rating_for_df(df: pd.DataFrame, group: str = "All") -> Dict[str, float | 
     else:
         overall = (ma_score + osc_score) / 2.0
     return {
-        "ma_score": round(ma_score, 4),
-        "osc_score": round(osc_score, 4),
+        # "ma_score": round(ma_score, 4),
+        # "osc_score": round(osc_score, 4),
         "score": round(overall, 4),
         "rating": tv_rating_text(overall),
-        "votes": votes  # -1/0/+1 per indicator (useful for debugging UI)
+        # "votes": votes  # -1/0/+1 per indicator (useful for debugging UI)
     }
