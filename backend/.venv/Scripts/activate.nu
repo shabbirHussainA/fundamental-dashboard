@@ -53,7 +53,7 @@ export-env {
       }
     }
 
-    let virtual_env = 'D:\Shabbir Creations\Shabbir Creations\fundamentals dashboard\backend\.venv'
+    let virtual_env = 'C:\Users\CPT\Desktop\Desktop\fundamentals dashboard\backend\.venv'
     let bin = 'Scripts'
 
     let is_windows = ($nu.os-info.family) == 'windows'
@@ -68,10 +68,10 @@ export-env {
     let new_path = ($env | get $path_name | prepend $venv_path)
 
     # If there is no default prompt, then use the env name instead
-    let virtual_env_prompt = (if ('backend' | is-empty) {
+    let virtual_env_prompt = (if ('' | is-empty) {
         ($virtual_env | path basename)
     } else {
-        'backend'
+        ''
     })
 
     let new_env = {

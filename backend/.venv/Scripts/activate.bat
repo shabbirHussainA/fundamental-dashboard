@@ -25,9 +25,9 @@
     @"%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
-@for %%i in ("D:\Shabbir Creations\Shabbir Creations\fundamentals dashboard\backend\.venv") do @set "VIRTUAL_ENV=%%~fi"
+@for %%i in ("C:\Users\CPT\Desktop\Desktop\fundamentals dashboard\backend\.venv") do @set "VIRTUAL_ENV=%%~fi"
 
-@set "VIRTUAL_ENV_PROMPT=backend"
+@set "VIRTUAL_ENV_PROMPT="
 @if NOT DEFINED VIRTUAL_ENV_PROMPT (
     @for %%d in ("%VIRTUAL_ENV%") do @set "VIRTUAL_ENV_PROMPT=%%~nxd"
 )
