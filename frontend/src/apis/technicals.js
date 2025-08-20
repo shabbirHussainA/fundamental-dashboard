@@ -1,7 +1,7 @@
 import axiosInstance from "../config/axios";
 
 const technicalApi ={
-    getRatings: (data) => axiosInstance.get(`ratings/tv/?symbols_csv=${data}`)
+    getRatings: (data) => axiosInstance.get(`get_analysis`)
 }
 
 export default technicalApi

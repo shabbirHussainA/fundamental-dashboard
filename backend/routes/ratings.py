@@ -1,9 +1,9 @@
 from typing import List, Dict, Optional
-from fastapi import APIRouter
+from fastapi import APIRouter,Query, HTTPException
 from controllers.candles import fetch_candles, TIMEFRAME
 import pandas as pd
 from controllers.ratings import compute_score_from_closes, rating_from_score,tv_rating_for_df
-
+from tradingview_ta import TA_Handler, Interval, Exchange, get_multiple_analysis
 rating = APIRouter()
 
 DEFAULT_TFS: List[str] = ["M1","M5","M15","M30","H1","H4","D"]
@@ -89,4 +89,80 @@ def ratings_tv(
                 for tf, details in durations.items()
             }
         })
-    return {"success": "true", "data": formatted_data}
+    return {"success": "true", "data": out}
+
+
+# ----------------------------------------------------------------------------------------
+
+# Define the default list of currency pairs
+# The list has been processed to be a list of strings
+DEFAULT_PAIRS_FOREX = [
+    "oanda:USDCAD", "oanda:USDCHF", "oanda:USDJPY", "oanda:GBPUSD", "oanda:GBPAUD", 
+    "oanda:GBPCHF", "oanda:GBPNZD", "oanda:GBPJPY", "oanda:GBPCAD", "oanda:EURUSD", 
+    "oanda:EURCAD", "oanda:EURJPY", "oanda:EURAUD", "oanda:EURNZD", "oanda:EURCHF", 
+    "oanda:EURGBP", "oanda:AUDCAD", "oanda:AUDCHF", "oanda:AUDNZD", "oanda:AUDUSD", 
+    "oanda:AUDJPY", "oanda:CADCHF", "oanda:CADJPY", "oanda:CHFJPY", "oanda:NZDUSD", 
+    "oanda:NZDJPY", "oanda:NZDCHF", "oanda:NZDCAD"
+]
+
+# A mapping from string timeframes to the Interval enum
+TIMEFRAME_MAP = {
+    "1m": Interval.INTERVAL_1_MINUTE,
+    "5m": Interval.INTERVAL_5_MINUTES,
+    "15m": Interval.INTERVAL_15_MINUTES,
+    "30m": Interval.INTERVAL_30_MINUTES,
+    "1h": Interval.INTERVAL_1_HOUR,
+    "2h": Interval.INTERVAL_2_HOURS,
+    "4h": Interval.INTERVAL_4_HOURS,
+    "1d": Interval.INTERVAL_1_DAY,
+    "1w": Interval.INTERVAL_1_WEEK,
+    "1M": Interval.INTERVAL_1_MONTH,
+}
+@rating.get("/get_analysis")
+async def get_analysis(
+    # Use Query to define the query parameters.
+    # The default value is None, and the list of pairs is handled below.
+    symbols: Optional[str] = Query(None, description="Comma-separated list of symbols (e.g., 'oanda:EURUSD,nasdaq:TSLA')"),
+    screener: str = Query("forex", description="The screener to use (e.g., 'forex', 'america', 'crypto')"),
+    timeframe: str = Query("1d", description="Timeframe for the analysis (e.g., '1h', '1d', '1w')")
+):
+    """
+    Fetches technical analysis summary for a given list of symbols and timeframe.
+    """
+    # Determine which symbols to use, either from the request or the default list.
+    if symbols:
+        # Split the comma-separated string into a list of strings and convert to uppercase.
+        target_symbols = [s.strip().upper() for s in symbols.split(",")]
+    else:
+        # Use the default Forex pairs if no symbols are provided.
+        target_symbols = DEFAULT_PAIRS_FOREX
+
+    # Convert the requested timeframe string to the Interval enum.
+    # If the timeframe is not found, return an error.
+    try:
+        interval_enum = TIMEFRAME_MAP[timeframe.lower()]
+    except KeyError:
+        raise HTTPException(status_code=400, detail=f"Invalid timeframe: '{timeframe}'. Please use one of: {', '.join(TIMEFRAME_MAP.keys())}")
+
+    try:
+        # Use get_multiple_analysis to fetch data for all symbols in a single request.
+        # This is much more efficient and less likely to hit a rate limit.
+        analysis = get_multiple_analysis(
+            screener=screener.lower(),
+            interval=interval_enum,
+            symbols=target_symbols
+        )
+    except Exception as e:
+        # If an error occurs during the bulk request, raise an HTTPException.
+        raise HTTPException(status_code=500, detail=f"Failed to get data from TradingView: {e}")
+
+    results = {}
+    # Iterate through the returned analysis and format the data
+    for symbol, analysis_object in analysis.items():
+        if analysis_object:
+            results[symbol] = analysis_object.summary
+        else:
+            # Handle cases where no analysis was found for a specific symbol.
+            results[symbol] = {"error": "Could not find data for this symbol on the specified screener."}
+    
+    return {"analysis_data": results}

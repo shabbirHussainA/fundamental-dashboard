@@ -5,5 +5,6 @@ class Candle(BaseModel):
     h: float
     l: float
     c: float
+    v: float | int | None = None  # << add volume
 
 

@@ -48,15 +48,16 @@ def fetch_candles(symbol: str, tf: str, count: int = 300) -> List[Candle]:
     if tf not in TIMEFRAME:
         return []
     tf_enum = TIMEFRAME[tf]
-    rates = mt5.copy_rates_from_pos(symbol, tf_enum, 0, count)
+    rates = mt5.copy_rates_from_pos(symbol, tf_enum, 1, count)
     if rates is None:
         return []
     df = pd.DataFrame(rates)
     return [
-        Candle(t=int(row["time"] * 1000), o=row["open"], h=row["high"],
-               l=row["low"], c=row["close"])
-        for _, row in df.iterrows()
-    ]
+    Candle(t=int(row["time"]*1000), o=row["open"], h=row["high"],
+           l=row["low"], c=row["close"],
+           v=row.get("tick_volume") if "tick_volume" in row else None)
+    for _, row in df.iterrows()
+]
 
 def fetch_all_tfs_for_symbol(symbol: str, tfs: List[str], count: int = 300) -> Dict[str, List[Candle]]:
     """Return a dict: { TF: [Candle, ...], ... } for one symbol."""
