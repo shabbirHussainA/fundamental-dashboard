@@ -8,9 +8,9 @@ const SCREENER_OPTIONS = [
   { v: "crypto", label: "Crypto" },
   { v: "america", label: "US Stocks" },
 ];
-const TF_OPTIONS = ["1m","5m","15m","30m","1h","2h","4h","1d","1W","1M"];
+const TF_OPTIONS = ["1m","5m","15m","30m","1h","4h","1d"];
 
-export default function DashboardLayout({ children }) {
+export default function DashboardLayout({ children, showForm }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -64,10 +64,14 @@ export default function DashboardLayout({ children }) {
           <nav className="hidden gap-2 md:flex">
             {navBtn("/", "Home")}
             {navBtn("/score", "Currency Pulse")}
+            {navBtn("/technical-heatMap", "Heat Map")}
           </nav>
         </div>
 
         {/* Desktop form */}
+       {  showForm &&(
+        <>
+        
         <div className="hidden border-t border-gray-200 md:block">
           <form onSubmit={onSubmit} className="mx-auto grid max-w-7xl grid-cols-12 gap-3 px-4 py-3">
             <div className="col-span-6 flex flex-col">
@@ -174,6 +178,10 @@ export default function DashboardLayout({ children }) {
             </button>
           </form>
         </div>
+        </>
+        )
+        }
+
       </header>
 
       {/* Page content */}

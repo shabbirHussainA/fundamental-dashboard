@@ -5,6 +5,7 @@ const initialState = {
   loading: false,
   error: null,
   technical_analysis: {},         // { "OANDA:USDCAD": { RECOMMENDATION, ... }, ... }
+  Heat_map:{},
   query: {                        // keep last used inputs (prefill the layout form)
     symbols: "OANDA:USDCAD,OANDA:USDCHF,OANDA:USDJPY,OANDA:GBPUSD",
     screener: "forex",
@@ -27,6 +28,19 @@ export const getAnalysis = createAsyncThunk(
   }
 );
 
+export const getHeatMap = createAsyncThunk(
+  "technicals/getHeatMap",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await technicalApi.getHeatMap()
+      return res.data; // expects { analysis_data: {...} }
+    } catch (err) {
+      return rejectWithValue(
+        err?.response?.data?.detail || err?.message || "Failed to fetch"
+      );
+    }
+  }
+);
 const technicalsSlice = createSlice({
   name: "technicals",
   initialState,
@@ -48,6 +62,18 @@ const technicalsSlice = createSlice({
         state.technical_analysis = action.payload?.analysis_data || {};
       })
       .addCase(getAnalysis.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || "Failed to fetch analysis data";
+      })
+      .addCase(getHeatMap.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getHeatMap.fulfilled, (state, action) => {
+        state.loading = false;
+        state.Heat_map = action.payload?.heatmap_data || {};
+      })
+      .addCase(getHeatMap.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || "Failed to fetch analysis data";
       });

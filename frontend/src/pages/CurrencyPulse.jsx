@@ -1,16 +1,15 @@
 import React, { useMemo, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector } from "react-redux";
 import DashboardLayout from "../components/layout/DashboardLayout";
-import { getAnalysis } from "../store/slicers/technicalSlice";
 
-/* ---------- helpers ---------- */
+/* ---------- helpers (unchanged) ---------- */
 const REC_TO_SCORE = { STRONG_BUY: 2, BUY: 1, NEUTRAL: 0, SELL: -1, STRONG_SELL: -2 };
 const recToScore = (rec) => REC_TO_SCORE[(rec || "").toUpperCase()] ?? 0;
 
 const parseFxPair = (key) => {
   if (!key) return null;
   const idx = key.lastIndexOf(":");
-  const raw = (idx >= 0 ? key.slice(idx + 1) : key).trim().toUpperCase(); // e.g. "OANDA:EURUSD" -> "EURUSD"
+  const raw = (idx >= 0 ? key.slice(idx + 1) : key).trim().toUpperCase();
   if (!/^[A-Z]{6}$/.test(raw)) return null;
   const base = raw.slice(0, 3);
   const quote = raw.slice(3, 6);
@@ -24,75 +23,106 @@ const scorePill = (n) =>
     ? "bg-rose-100 text-rose-800"
     : "bg-gray-100 text-gray-800";
 
+/* ---------- NEW: quantiles + label/class helpers ---------- */
+const quantile = (arr, q) => {
+  if (!arr.length) return 0;
+  const a = [...arr].sort((x, y) => x - y);
+  const pos = (a.length - 1) * q;
+  const base = Math.floor(pos);
+  const rest = pos - base;
+  if (a[base + 1] !== undefined) return a[base] + rest * (a[base + 1] - a[base]);
+  return a[base];
+};
+
+const trendLabelFromDiff = (diff, absDiff, q1, q3) => {
+  if (absDiff <= q1) return "Neutral";
+  if (absDiff >= q3) return diff > 0 ? "Strong Bullish" : diff < 0 ? "Strong Bearish" : "Neutral";
+  return diff > 0 ? "Bullish" : diff < 0 ? "Bearish" : "Neutral";
+};
+
+const trendBadgeCls = (label) => {
+  switch (label) {
+    case "Strong Bullish":
+      return "bg-emerald-600 text-white";
+    case "Bullish":
+      return "bg-emerald-100 text-emerald-800";
+    case "Neutral":
+      return "bg-gray-100 text-gray-800";
+    case "Strong Bearish":
+      return "bg-rose-600 text-white";
+    case "Bearish":
+    default:
+      return "bg-rose-100 text-rose-800";
+  }
+};
+
 /* ---------- page ---------- */
 export default function CurrencyPulse() {
-  const dispatch = useDispatch();
-  const technicals = useSelector((s) => s.technicals) 
+  const technicals = useSelector((s) => s.technicals);
+  const { technical_analysis, loading, error } = technicals;
 
-  const { technical_analysis, loading, error, query } = technicals;
-
-  // build cumulative currency scores from pair recommendations
+  // cumulative currency scores
   const currencyScores = useMemo(() => {
-    const scores = {}; // { USD: 3, EUR: -1, ... }
+    const scores = {};
     for (const [key, payload] of Object.entries(technical_analysis || {})) {
       const p = parseFxPair(key);
       if (!p || !payload) continue;
       const s = recToScore(payload.RECOMMENDATION);
-      scores[p.base] = (scores[p.base] || 0) + s;  // base gets +score
-      scores[p.quote] = (scores[p.quote] || 0) - s; // quote gets -score
+      scores[p.base] = (scores[p.base] || 0) + s;
+      scores[p.quote] = (scores[p.quote] || 0) - s;
     }
     return scores;
   }, [technical_analysis]);
 
-  // summary table rows
-  const summaryRows = useMemo(() => {
-    return Object.entries(currencyScores)
-      .map(([ccy, score]) => ({ ccy, score }))
-      .sort((a, b) => b.score - a.score);
-  }, [currencyScores]);
+  // summary rows
+  const summaryRows = useMemo(
+    () =>
+      Object.entries(currencyScores)
+        .map(([ccy, score]) => ({ ccy, score }))
+        .sort((a, b) => b.score - a.score),
+    [currencyScores]
+  );
 
-  // best pairs table derived from the ACTUAL pairs we received
-  const bestPairs = useMemo(() => {
+  // base bestPairs (diff only)
+  const basePairs = useMemo(() => {
     const rows = [];
     for (const [key] of Object.entries(technical_analysis || {})) {
       const p = parseFxPair(key);
       if (!p) continue;
       const b = currencyScores[p.base] ?? 0;
       const q = currencyScores[p.quote] ?? 0;
-      const diff = b - q;                   // signed difference
-      const absDiff = Math.abs(diff);       // display as positive magnitude
-      rows.push({
-        pair: p.pair,
-        diff,
-        absDiff,
-        trend: diff > 0 ? "Bullish" : "Bearish",
-      });
+      const diff = b - q;
+      const absDiff = Math.abs(diff);
+      rows.push({ pair: p.pair, diff, absDiff });
     }
-    // de-duplicate same pair keys if API returns duplicates
+    // de-dup by pair
     const uniq = new Map();
     for (const r of rows) uniq.set(r.pair, r);
-    return Array.from(uniq.values()).sort((a, b) => b.absDiff - a.absDiff);
+    return Array.from(uniq.values());
   }, [technical_analysis, currencyScores]);
 
-  // optional: limit rows shown
+  // compute distribution thresholds (Q1, Q3) and classify
+  const bestPairs = useMemo(() => {
+    const magnitudes = basePairs.map((r) => r.absDiff);
+    const q1 = quantile(magnitudes, 0.25);
+    const q3 = quantile(magnitudes, 0.75);
+
+    const enriched = basePairs.map((r) => {
+      const label = trendLabelFromDiff(r.diff, r.absDiff, q1, q3);
+      return { ...r, trend: label };
+    });
+
+    // sort by magnitude desc
+    return enriched.sort((a, b) => b.absDiff - a.absDiff);
+  }, [basePairs]);
+
   const [topN, setTopN] = useState(15);
   const displayedBestPairs = bestPairs.slice(0, topN);
 
   return (
-    <DashboardLayout>
+    <DashboardLayout showForm={true}>
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-semibold">Currency Pulse Analysis</h2>
-        {/* <div className="flex items-center gap-3 text-sm text-gray-600">
-          <span>Lookback: <strong>—</strong></span>
-          <span>Interval: <strong>{query.timeframe}</strong></span>
-          <button
-            onClick={() => dispatch(getAnalysis(query))}
-            disabled={loading}
-            className="rounded-md bg-indigo-600 px-3 py-1.5 font-semibold text-white shadow hover:bg-indigo-700 disabled:opacity-60"
-          >
-            {loading ? "Running..." : "Run Analysis"}
-          </button>
-        </div> */}
       </div>
 
       {error && (
@@ -102,19 +132,15 @@ export default function CurrencyPulse() {
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Summary (left) */}
+        {/* Summary */}
         <div className="rounded-xl bg-white p-5 shadow">
           <h3 className="mb-3 text-base font-semibold text-gray-900">Summary</h3>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider">
-                    Currency
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider">
-                    Score
-                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider">Currency</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider">Score</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -140,7 +166,7 @@ export default function CurrencyPulse() {
           </div>
         </div>
 
-        {/* Best Pairs (right) */}
+        {/* Best Pairs */}
         <div className="rounded-xl bg-white p-5 shadow">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-base font-semibold text-gray-900">Best Pairs</h3>
@@ -173,13 +199,7 @@ export default function CurrencyPulse() {
                     <td className="px-4 py-2 text-sm font-medium text-gray-900">{r.pair}</td>
                     <td className="px-4 py-2 text-sm font-semibold">{r.absDiff}</td>
                     <td className="px-4 py-2 text-sm">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-1 font-semibold ${
-                          r.trend === "Bullish"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-rose-100 text-rose-800"
-                        }`}
-                      >
+                      <span className={`inline-flex rounded-full px-2 py-1 font-semibold ${trendBadgeCls(r.trend)}`}>
                         {r.trend}
                       </span>
                     </td>
@@ -198,7 +218,7 @@ export default function CurrencyPulse() {
 
           <p className="mt-3 text-xs text-gray-500">
             *Score Difference = (Base currency cumulative score) − (Quote currency cumulative score).<br />
-            We display its magnitude; Trend shows the direction (Bullish if Base &gt; Quote, else Bearish).
+            We classify pairs by the distribution of score differences: ≤ 25th percentile → Neutral, ≥ 75th percentile → Strong.
           </p>
         </div>
       </div>

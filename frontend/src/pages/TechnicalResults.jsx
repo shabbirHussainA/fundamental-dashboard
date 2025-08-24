@@ -14,7 +14,7 @@ export default function TechnicalResults() {
   // }, [dispatch]);
 
   return (
-    <DashboardLayout>
+    <DashboardLayout showForm={true}>
       <h2 className="mb-4 text-xl font-semibold">Detailed Results</h2>
       <ResultsTable />
     </DashboardLayout>

@@ -3,11 +3,24 @@ import { useSelector } from "react-redux";
 
 const REC_TO_SCORE = { STRONG_BUY: 2, BUY: 1, NEUTRAL: 0, SELL: -1, STRONG_SELL: -2 };
 const recToScore = (rec) => REC_TO_SCORE[(rec || "").toUpperCase()] ?? 0;
-const trendFromScore = (s) => (s > 0 ? "Bullish" : s < 0 ? "Bearish" : "Neutral");
-const trendBadgeCls = (t) =>
-  t === "Bullish" ? "bg-emerald-100 text-emerald-800" :
-  t === "Bearish" ? "bg-rose-100 text-rose-800" :
-  "bg-gray-100 text-gray-800";
+
+const trendFromDetailedScore = (s) =>
+  s === 2 ? "Strong Bullish" :
+  s === 1 ? "Bullish" :
+  s === -1 ? "Bearish" :
+  s === -2 ? "Strong Bearish" :
+  "Neutral";
+
+const trendBadgeCls = (t) => {
+  switch (t) {
+    case "Strong Bullish": return "bg-emerald-600 text-white";
+    case "Bullish":        return "bg-emerald-100 text-emerald-800";
+    case "Neutral":        return "bg-gray-100 text-gray-800";
+    case "Strong Bearish": return "bg-rose-600 text-white";
+    case "Bearish":        return "bg-rose-100 text-rose-800";
+    default:               return "bg-gray-100 text-gray-800";
+  }
+};
 
 const parseFxPair = (key) => {
   if (!key) return null;
@@ -19,7 +32,8 @@ const parseFxPair = (key) => {
 };
 
 export default function ResultsTable() {
-  const { technical_analysis, loading, error } = useSelector((s) => s.technicals);
+  const { technical_analysis = {}, loading, error } =
+    useSelector((s) => s.technicals) || {};
 
   const rows = useMemo(() => {
     const out = [];
@@ -27,10 +41,10 @@ export default function ResultsTable() {
       if (!payload) continue;
       const p = parseFxPair(key);
       if (!p) continue;
-      const score = recToScore(payload.RECOMMENDATION);
+      const score = recToScore(payload.RECOMMENDATION); // -2..+2
       out.push({
         pair: p.pair,
-        trend: trendFromScore(score),
+        trend: trendFromDetailedScore(score),
         base: p.base,
         baseScore: score,
         quote: p.quote,

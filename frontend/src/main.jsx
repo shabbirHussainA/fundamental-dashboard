@@ -8,6 +8,7 @@ import { Provider } from 'react-redux'
 import store from './store/store.js'
 import TechnicalResults from './pages/TechnicalResults.jsx'
 import CurrencyPulse from './pages/CurrencyPulse.jsx'
+import HeatMapPage from './pages/HeatMapPage.jsx'
 const router = createBrowserRouter([
   {
     path: '/',
@@ -20,6 +21,10 @@ const router = createBrowserRouter([
         {
           path: '/score',
           element: <CurrencyPulse/>
+        },
+        {
+          path:'/technical-heatMap',
+          element: <HeatMapPage/>
         }
     ]
   }

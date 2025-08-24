@@ -112,11 +112,11 @@ TIMEFRAME_MAP = {
     "15m": Interval.INTERVAL_15_MINUTES,
     "30m": Interval.INTERVAL_30_MINUTES,
     "1h": Interval.INTERVAL_1_HOUR,
-    "2h": Interval.INTERVAL_2_HOURS,
+    # "2h": Interval.INTERVAL_2_HOURS,
     "4h": Interval.INTERVAL_4_HOURS,
     "1d": Interval.INTERVAL_1_DAY,
-    "1w": Interval.INTERVAL_1_WEEK,
-    "1M": Interval.INTERVAL_1_MONTH,
+    # "1w": Interval.INTERVAL_1_WEEK,
+    # "1M": Interval.INTERVAL_1_MONTH,
 }
 @rating.get("/get_analysis")
 async def get_analysis(
@@ -166,3 +166,32 @@ async def get_analysis(
             results[symbol] = {"error": "Could not find data for this symbol on the specified screener."}
     
     return {"analysis_data": results}
+
+@rating.get("/get_heatmap")
+async def get_heatmap():
+    """
+    Fetches technical analysis summary for all default forex pairs 
+    across all available timeframes.
+    Makes exactly 1 API call per timeframe (batched symbols).
+    """
+    heatmap_data = {symbol: {} for symbol in DEFAULT_PAIRS_FOREX}
+
+    for tf_str, interval_enum in TIMEFRAME_MAP.items():
+        try:
+            analysis = get_multiple_analysis(
+                screener="forex",
+                interval=interval_enum,
+                symbols=DEFAULT_PAIRS_FOREX
+            )
+            for symbol, analysis_object in analysis.items():
+                heatmap_data[symbol][tf_str] = (
+                    analysis_object.summary if analysis_object
+                    else {"error": f"No data for {symbol} on {tf_str}"}
+                )
+        except Exception as e:
+            for symbol in DEFAULT_PAIRS_FOREX:
+                heatmap_data[symbol][tf_str] = {
+                    "error": f"Failed to get data on {tf_str}: {e}"
+                }
+
+    return {"heatmap_data": heatmap_data}

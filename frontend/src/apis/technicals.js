@@ -12,6 +12,7 @@ const technicalApi = {
         timeframe,     // e.g. "1d"
       },
     }),
+  getHeatMap:()=> axiosInstance.get("/get_heatmap")
 };
 
 export default technicalApi;
