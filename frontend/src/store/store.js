@@ -1,11 +1,9 @@
-import { configureStore } from "@reduxjs/toolkit";
-import rootReducer from "./rootReducer"; // ✅ Import the new root reducer
-
-const isDevelopment = true;
-
+import { configureStore } from '@reduxjs/toolkit';
+import technicals from './slicers/technicalSlice';
 const store = configureStore({
-  reducer: rootReducer, // ✅ Use rootReducer here
-  devTools: isDevelopment,
+  reducer: {
+    technicals,   // <-- key must be "technicals" to match your selector
+  },
 });
 
-export default store;
+export default store

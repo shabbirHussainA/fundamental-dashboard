@@ -1,7 +1,17 @@
+// src/apis/technicals.js
 import axiosInstance from "../config/axios";
 
-const technicalApi ={
-    getRatings: (data) => axiosInstance.get(`get_analysis`)
-}
+const technicalApi = {
+  // call as technicalApi.getRatings({ symbols, screener, timeframe })
+  getRatings: ({ symbols, screener, timeframe }) =>
+    axiosInstance.get("/get_analysis", {
+      params: {
+        // keep the string as-is; axios will encode it
+        symbols,       // e.g. "OANDA:USDCAD,OANDA:USDCHF,OANDA:USDJPY"
+        screener,      // e.g. "forex"
+        timeframe,     // e.g. "1d"
+      },
+    }),
+};
 
-export default technicalApi
+export default technicalApi;
